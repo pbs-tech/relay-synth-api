@@ -14,7 +14,7 @@ const helmet = require('helmet');
 const app = express();
 const port = 8000;
 
-require('dotenv/config');
+require('dotenv').config();
 require('./auth/auth');
 
 app.use(bodyParser.json());
@@ -63,12 +63,12 @@ if (process.env.NODE_ENV !== 'production') {
     }));
 }
 
-mongoose.connect(process.env.DB_CONNECTION,
-    {   useCreateIndex: true,
-        useNewUrlParser: true,
-     useUnifiedTopology: true },
-console.log('connected to DB!')
-);
+// Only connect to DB if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+    mongoose.connect(process.env.DB_CONNECTION || 'mongodb://localhost:27017/relay-synth-api')
+    .then(() => console.log('connected to DB!'))
+    .catch(err => console.error('DB connection error:', err));
+}
 
 
 app.use(function(err, req, res, next) {

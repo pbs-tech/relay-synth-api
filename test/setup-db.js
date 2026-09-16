@@ -1,19 +1,21 @@
 var mongoose = require('mongoose');
-var MemoryServer = require('mongodb-memory-server');
+var { MongoMemoryServer } = require('mongodb-memory-server');
 
+// Set up test environment variables
+process.env.JWT_ACCESS_TOKEN_SECRET = 'test-secret-key-for-testing';
+process.env.NODE_ENV = 'test';
 
 let mongoServer;
 
-const opts = {
-    useCreateIndex: true,
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}
-
 before(async () => {
-    mongoServer = new MemoryServer.MongoMemoryServer();
-    const mongoUri = await mongoServer.getUri();
-    await mongoose.connect(mongoUri, opts);
+    // Disconnect any existing connections first
+    if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect();
+    }
+    
+    mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+    await mongoose.connect(mongoUri);
     console.log('connected to test db');
 });
 after(async () => {

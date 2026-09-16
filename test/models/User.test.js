@@ -1,101 +1,96 @@
-var chai = require('chai');
-var expect = chai.expect;
-var User = require('../../models/User');
+const { expect } = require('chai');
+const User = require('../../models/User');
 
-describe('Invalid User', function() {
-    var user1;
-    before(function() {
-        user1 = new User();
+describe('User Model', () => {
+    describe('Validation - Invalid User', () => {
+        let user;
 
-    })
-    describe('required email', function() {
-        it('Should be invalid if no email', function(done) {
-            user1.validate(function(err) {
+        beforeEach(() => {
+            user = new User();
+        });
+
+        it('should be invalid if no email', async () => {
+            try {
+                await user.validate();
+                throw new Error('Validation should have failed');
+            } catch (err) {
                 expect(err.errors.email).to.exist;
-                done();
+            }
+        });
 
-            })
-        })
-    })
-    describe('required password', function() {
-        it('Should be invalid if no password', function(done) {
-            user1.validate(function(err) {
+        it('should be invalid if no password', async () => {
+            try {
+                await user.validate();
+                throw new Error('Validation should have failed');
+            } catch (err) {
                 expect(err.errors.password).to.exist;
-                done();
-            })
-        })
-    })
-})
-describe('Valid User', function() {
-    var user2;
-    before(function() {
-        user2 = new User({ email: 'test@outlook.com', password: 'Testing123!'} )
-    })
-    describe('correct email', function() {
-        it('Email should be test@outlook.com', function(done) {
-            user2.validate(function() {
-                expect(user2.email).to.equal('test@outlook.com');
-                done();
+            }
+        });
+    });
+
+    describe('Validation - Valid User', () => {
+        let user;
+
+        beforeEach(() => {
+            user = new User({
+                email: 'test@outlook.com',
+                password: 'Testing123!'
             });
-        })
-    })
-    describe('correct unhashed password', function()  {
+        });
 
-        it('Password should be Testing123! before hashing', function(done) {
-            user2.validate(function() {
-                expect(user2.password).to.equal('Testing123!');
-                done();
-            })
-        }); 
-    })
-    describe('correct default totalScore', function() {
-        it('totalScore should be 0 when created', function(done) {
-            user2.validate(function() {
-                expect(user2.totalScore).to.equal(0);
-                done();
-            })
-        })
-    })
-    describe('correct default tutorials', function() {
-        it('tutorialsCompleted should be empty when created', function(done) {
-            user2.validate(function() {
-                expect(user2.tutorialsCompleted).to.be.an('array').that.is.empty;
-                done();
-            })
-        })
-    })
+        it('should be valid with email and password', async () => {
+            const result = await user.validate();
+            expect(result).to.be.undefined; // No errors
+        });
 
-    describe('password hashing functions', function() {
-        var hashedPassword;
-        describe('hashing password', function() {
-            it('password should be hashed correctly and not equal Testing123!', function(done) {
-                user2.validate(async function() {
-                    hashedPassword = await user2.hashPassword('Testing123!');
-                    user2.password = hashedPassword;
-                    expect(user2.password).to.not.equal('Testing123!');
-                    done();
-                    
-                })
-            })
-        })
-        describe('password validation', function() {
-            it('should return true if passwords match', function(done) {
-                user2.validate(async function() {
-                    compareResult = await user2.isValidPassword('Testing123!');
-                    expect(compareResult).to.be.true;
-                    done();
-                })
-            })
+        it('should have correct email', () => {
+            expect(user.email).to.equal('test@outlook.com');
+        });
 
-            it('should return false if passwords do not match', function(done) {
-                user2.validate(async function() {
-                    compareResult = await user2.isValidPassword('MostDefinitelyNotTesting123!');
-                    expect(compareResult).to.be.false;
-                    done();
-                })
-            })
+        it('should have correct password before hashing', () => {
+            expect(user.password).to.equal('Testing123!');
+        });
 
-        })
+        it('should have default totalScore of 0', () => {
+            expect(user.totalScore).to.equal(0);
+        });
 
-    })
-})
+        it('should have empty tutorialsCompleted array', () => {
+            expect(user.tutorialsCompleted).to.be.an('array').that.is.empty;
+        });
+    });
+
+    describe('Password hashing functionality', () => {
+        let user;
+
+        beforeEach(() => {
+            user = new User({
+                email: 'test@outlook.com',
+                password: 'Testing123!'
+            });
+        });
+
+        it('should hash password correctly', async () => {
+            const hashedPassword = await user.hashPassword('Testing123!');
+            expect(hashedPassword).to.not.equal('Testing123!');
+            expect(hashedPassword).to.be.a('string');
+            expect(hashedPassword.length).to.be.greaterThan(10);
+        });
+
+        it('should validate correct password', async () => {
+            const hashedPassword = await user.hashPassword('Testing123!');
+            user.password = hashedPassword;
+            
+            const isValid = await user.isValidPassword('Testing123!');
+            expect(isValid).to.be.true;
+        });
+
+        it('should reject incorrect password', async () => {
+            const hashedPassword = await user.hashPassword('Testing123!');
+            user.password = hashedPassword;
+            
+            const isValid = await user.isValidPassword('WrongPassword');
+            expect(isValid).to.be.false;
+        });
+    });
+});
