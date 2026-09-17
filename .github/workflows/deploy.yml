@@ -1,0 +1,128 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        required: true
+        default: prod
+        type: choice
+        options: [dev, prod]
+
+# Never let two applies race for the same state lock.
+concurrency:
+  group: deploy-${{ inputs.environment || 'prod' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # Required for OIDC federation into AWS.
+
+env:
+  NODE_VERSION: '22'
+  TERRAFORM_VERSION: '1.10.5'
+  TF_ENVIRONMENT: ${{ inputs.environment || 'prod' }}
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment || 'prod' }}
+    runs-on: ubuntu-latest
+    # Attach required reviewers to this GitHub Environment to gate production.
+    environment: ${{ inputs.environment || 'prod' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # Deploy only what passed. Cheap enough to re-run, and it means a broken
+      # build can never reach the apply step.
+      - name: Typecheck and test
+        run: |
+          npm run typecheck
+          npm run test
+
+      # archive_file zips dist/, so the bundles must exist before terraform runs.
+      - name: Build Lambda bundles
+        run: npm run build
+
+      # Short-lived credentials via OIDC - no long-lived AWS keys in GitHub.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'eu-west-2' }}
+          role-session-name: relay-synth-deploy-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform init
+        working-directory: terraform
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=api/${TF_ENVIRONMENT}.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION || 'eu-west-2' }}" \
+            -backend-config="use_lockfile=true"
+
+      - name: Terraform plan
+        working-directory: terraform
+        env:
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+        run: |
+          terraform plan -input=false -lock-timeout=5m \
+            -var-file="environments/${TF_ENVIRONMENT}.tfvars" \
+            -out=tfplan
+
+      - name: Terraform apply
+        working-directory: terraform
+        env:
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+        run: terraform apply -input=false -lock-timeout=5m -auto-approve tfplan
+
+      - name: Capture outputs
+        id: tf
+        working-directory: terraform
+        run: |
+          {
+            echo "table_name=$(terraform output -raw dynamodb_table_name)"
+            echo "api_endpoint=$(terraform output -raw api_endpoint)"
+          } >> "$GITHUB_OUTPUT"
+
+      # Idempotent: writes by primary key, so every deploy reconciles the table
+      # with data/tutorials.json. This is what makes the JSON file, not the
+      # database, the source of truth for tutorial content.
+      - name: Seed tutorial content
+        env:
+          TABLE_NAME: ${{ steps.tf.outputs.table_name }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-2' }}
+        run: npm run seed
+
+      - name: Smoke test
+        run: |
+          endpoint="${{ steps.tf.outputs.api_endpoint }}"
+          echo "Checking $endpoint"
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 \
+            --retry-all-errors "$endpoint/" | tee /dev/stderr | grep -q "API is live"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed \`${TF_ENVIRONMENT}\`"
+            echo ""
+            echo "- API: ${{ steps.tf.outputs.api_endpoint }}"
+            echo "- Table: \`${{ steps.tf.outputs.table_name }}\`"
+            echo "- Commit: \`${GITHUB_SHA::7}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

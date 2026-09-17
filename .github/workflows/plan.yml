@@ -1,0 +1,131 @@
+name: Terraform Plan
+
+# Surfaces the infrastructure diff on the PR that causes it, so a change to the
+# table, IAM or API surface is reviewable before it is applied.
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - 'src/**'
+      - 'package-lock.json'
+      - '.github/workflows/plan.yml'
+
+concurrency:
+  group: plan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write # To post the plan as a comment.
+
+env:
+  NODE_VERSION: '22'
+  TERRAFORM_VERSION: '1.10.5'
+  TF_ENVIRONMENT: prod
+
+jobs:
+  plan:
+    name: Plan against prod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # archive_file hashes dist/, so without a build every plan would show a
+      # spurious Lambda source_code_hash change.
+      - name: Build Lambda bundles
+        run: npm run build
+
+      # A read-only role. Plans run on PR head, which is untrusted input, so it
+      # must never hold permission to mutate anything.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'eu-west-2' }}
+          role-session-name: relay-synth-plan-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform init
+        working-directory: terraform
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=api/${TF_ENVIRONMENT}.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION || 'eu-west-2' }}" \
+            -backend-config="use_lockfile=true"
+
+      - name: Terraform plan
+        id: plan
+        working-directory: terraform
+        env:
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+        run: |
+          set +e
+          terraform plan -input=false -lock=false -no-color \
+            -var-file="environments/${TF_ENVIRONMENT}.tfvars" \
+            > plan.txt 2>&1
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+          # Keep the comment inside GitHub's 65535 character body limit.
+          tail -c 60000 plan.txt > plan-trimmed.txt
+          cat plan-trimmed.txt
+
+      - name: Comment plan on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/plan-trimmed.txt', 'utf8');
+            const failed = '${{ steps.plan.outputs.exitcode }}' !== '0';
+            const body = [
+              `### Terraform plan — \`${{ env.TF_ENVIRONMENT }}\` ${failed ? '❌' : '✅'}`,
+              '',
+              '<details><summary>Show plan</summary>',
+              '',
+              '```terraform',
+              plan,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(
+              (c) => c.user.type === 'Bot' && c.body.startsWith('### Terraform plan'),
+            );
+
+            // Update in place so a chatty PR does not accumulate stale plans.
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail if plan errored
+        if: steps.plan.outputs.exitcode != '0'
+        run: exit 1

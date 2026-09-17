@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [master]
+
+# A new push supersedes an in-flight run on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  TERRAFORM_VERSION: '1.10.5'
+
+jobs:
+  application:
+    name: Typecheck, test and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test -- --coverage
+
+      # Fails the build if any seeded tutorial asks for a synth value the
+      # frontend controls cannot produce. Such a tutorial looks completely normal
+      # but can never be solved, so it has to be caught before deploy.
+      - name: Validate tutorial content is solvable
+        run: npm run seed -- --dry-run
+
+      - name: Build Lambda bundles
+        run: npm run build
+
+      - name: Upload bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-bundles
+          path: dist/
+          retention-days: 7
+
+  terraform:
+    name: Terraform fmt and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+
+      # -backend=false initialises providers without needing state credentials,
+      # which is all `validate` requires.
+      - name: Init
+        run: terraform init -backend=false -input=false
+        working-directory: terraform
+
+      - name: Validate
+        run: terraform validate
+        working-directory: terraform
