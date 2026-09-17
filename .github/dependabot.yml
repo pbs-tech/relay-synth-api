@@ -1,0 +1,86 @@
+# Dependency updates for the three ecosystems this repository actually has:
+# the npm package at the root, the Terraform providers under terraform/, and
+# the actions pinned in .github/workflows.
+#
+# Updates are grouped so that a week of routine bumps arrives as a handful of
+# PRs rather than one per dependency - the AWS SDK alone publishes most
+# weekdays. Every group is restricted to minor and patch, which means a major
+# is always raised on its own and always lands in front of a human. That lines
+# up with dependabot-auto-merge.yml, which only auto-merges minor and patch,
+# and only once the CI checks on the PR have gone green.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/London
+    open-pull-requests-limit: 5
+    groups:
+      # @aws-sdk/* packages are versioned and released in lockstep, so updating
+      # them together is both fewer PRs and a more coherent change than three
+      # separate bumps that only make sense applied at the same time.
+      aws-sdk:
+        patterns:
+          - '@aws-sdk/*'
+        update-types:
+          - minor
+          - patch
+      production-dependencies:
+        dependency-type: production
+        exclude-patterns:
+          - '@aws-sdk/*'
+        update-types:
+          - minor
+          - patch
+      development-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # @types/node tracks the Node major line, and package.json pins the
+      # runtime at >=22 to match the Lambda runtime and NODE_VERSION in CI.
+      # A @types/node major would type-check this project against a Node it
+      # does not run on, so that bump belongs with a deliberate runtime upgrade
+      # rather than in the dependency stream.
+      - dependency-name: '@types/node'
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: terraform
+    directory: /terraform
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/London
+    open-pull-requests-limit: 3
+    groups:
+      terraform-providers:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    # '/' is the whole repository for this ecosystem: it means .github/workflows,
+    # not a directory literally named '/'.
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/London
+    open-pull-requests-limit: 3
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
