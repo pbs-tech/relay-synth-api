@@ -33,10 +33,17 @@ export function notFoundHandler(c: Context): Response {
   return c.json({ message: `No route for ${c.req.method} ${c.req.path}`, code: 'NOT_FOUND' }, 404);
 }
 
-/** Parses a path parameter that must be a positive integer tutorial number. */
+/**
+ * Parses a path parameter that must be a positive integer tutorial number.
+ *
+ * Requires canonical decimal form. Number() alone would accept "1e3", "01" and
+ * " 1 " as 1000, 1 and 1, letting several URLs address the same tutorial - which
+ * fragments CDN caching and makes logs harder to read for no benefit.
+ */
 export function parseTutorialNumber(raw: string | undefined): number | null {
   if (!raw) return null;
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed < 1) return null;
+  if (String(parsed) !== raw) return null;
   return parsed;
 }

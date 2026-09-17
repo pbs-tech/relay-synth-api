@@ -1,6 +1,6 @@
 import { GetCommand, QueryCommand, DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../../src/handlers/tutorials.js';
 
 const ddb = mockClient(DynamoDBDocumentClient);
@@ -26,7 +26,58 @@ const storedTutorial = {
   example: { note: 'C3', duration: '4n', interval: '2n' },
 };
 
-beforeEach(() => ddb.reset());
+beforeEach(() => {
+  ddb.reset();
+  // The 500 case logs a stack by design; keep it out of the test output.
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+afterEach(() => vi.restoreAllMocks());
+
+describe('GET /tutorials', () => {
+  it('returns the full ordered curriculum', async () => {
+    ddb.on(QueryCommand).resolves({
+      Items: [storedTutorial, { ...storedTutorial, SK: 'TUTORIAL#0010', number: 10 }],
+    });
+
+    const res = await app.request('/tutorials');
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<Record<string, unknown>>;
+    expect(body.map((t) => t.number)).toEqual([9, 10]);
+    expect(body[0]).not.toHaveProperty('PK');
+  });
+
+  it('returns an empty array when the table has not been seeded', async () => {
+    ddb.on(QueryCommand).resolves({});
+
+    expect(await (await app.request('/tutorials')).json()).toEqual([]);
+  });
+});
+
+describe('GET /', () => {
+  it('answers the unauthenticated health check', async () => {
+    const res = await app.request('/');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ message: 'API is live' });
+  });
+
+  it('needs no DynamoDB call, so it stays green during a table outage', async () => {
+    ddb.on(QueryCommand).rejects(new Error('table unavailable'));
+    ddb.on(GetCommand).rejects(new Error('table unavailable'));
+
+    expect((await app.request('/')).status).toBe(200);
+  });
+});
+
+describe('unmatched routes', () => {
+  it('returns a JSON 404', async () => {
+    const res = await app.request('/tutorials/9/nonexistent');
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
 
 describe('GET /tutorials/count', () => {
   it('returns the shape the nav drawer reads', async () => {

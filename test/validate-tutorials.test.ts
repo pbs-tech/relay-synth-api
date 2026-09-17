@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { validateTutorial, validateTutorials } from '../src/lib/validate-tutorials.js';
+import {
+  assertValidTutorials,
+  validateTutorial,
+  validateTutorials,
+} from '../src/lib/validate-tutorials.js';
 import type { Tutorial } from '../src/types.js';
 
 function tutorial(overrides: Partial<Tutorial> = {}): Tutorial {
@@ -175,5 +179,160 @@ describe('validateTutorials', () => {
       tutorial({ number: 3 }),
     ]);
     expect(errors).toEqual([]);
+  });
+});
+
+describe('validateTutorial - structural failures', () => {
+  it('reports a missing synth.parameters and stops there', () => {
+    const errors = validateTutorial(
+      tutorial({ synth: { polyphony: 1, type: 'Mono Synth' } as never }),
+    );
+
+    expect(errors).toEqual(['tutorial 1: synth.parameters is required']);
+  });
+
+  it('reports a non-numeric envelope stage rather than treating it as off-grid', () => {
+    const errors = validateTutorial(
+      tutorial({
+        synth: {
+          polyphony: 1,
+          type: 'Mono Synth',
+          parameters: {
+            oscillator: { type: 'sine' },
+            envelope: { attack: '0.5', decay: 0.25, sustain: 0.5, release: 1 } as never,
+          },
+        },
+      }),
+    );
+
+    expect(errors).toEqual(['tutorial 1: envelope.attack must be a number']);
+  });
+
+  it('validates the filter envelope on the same grid as the amplitude envelope', () => {
+    const errors = validateTutorial(
+      tutorial({
+        synth: {
+          polyphony: 1,
+          type: 'Mono Synth',
+          parameters: {
+            oscillator: { type: 'sine' },
+            filterEnvelope: { attack: 0.33, decay: 0.25, sustain: 0.5, release: 1 } as never,
+          },
+        },
+      }),
+    );
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('filterEnvelope.attack is 0.33');
+  });
+
+  it.each([
+    ['number', { number: 0 }, 'number must be a positive integer'],
+    ['name', { name: '   ' }, 'name must be a non-empty string'],
+    ['category', { category: '' }, 'category must be a non-empty string'],
+    ['difficulty', { difficulty: '' }, 'difficulty must be a non-empty string'],
+    ['text', { text: '' }, 'text must be a non-empty string'],
+    ['pointsAvailable', { pointsAvailable: 0 }, 'pointsAvailable must be a positive integer'],
+    ['pointsAvailable', { pointsAvailable: 1.5 }, 'pointsAvailable must be a positive integer'],
+  ])('rejects an invalid %s', (_field, override, expected) => {
+    const errors = validateTutorial(tutorial(override as never));
+
+    expect(errors.join()).toContain(expected);
+  });
+
+  it('reports a wholly missing example', () => {
+    const errors = validateTutorial(tutorial({ example: undefined as never }));
+
+    expect(errors).toHaveLength(3);
+    expect(errors.join()).toContain('example.note');
+    expect(errors.join()).toContain('example.duration');
+    expect(errors.join()).toContain('example.interval');
+  });
+
+  it('accumulates every problem rather than stopping at the first', () => {
+    const errors = validateTutorial(
+      tutorial({
+        name: '',
+        pointsAvailable: -1,
+        example: { note: '', duration: '', interval: '4n' },
+      }),
+    );
+
+    expect(errors.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe('validateTutorials - sequencing', () => {
+  it('accepts an empty curriculum', () => {
+    expect(validateTutorials([])).toEqual([]);
+  });
+
+  it('accepts tutorials supplied out of order, since the sort key orders them', () => {
+    const errors = validateTutorials([
+      tutorial({ number: 3 }),
+      tutorial({ number: 1 }),
+      tutorial({ number: 2 }),
+    ]);
+
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects a curriculum that does not start at 1', () => {
+    const errors = validateTutorials([tutorial({ number: 2 }), tutorial({ number: 3 })]);
+
+    expect(errors.join()).toContain('must run 1..n with no gaps');
+  });
+
+  it('surfaces both a duplicate and the gap it creates', () => {
+    const errors = validateTutorials([
+      tutorial({ number: 1 }),
+      tutorial({ number: 2 }),
+      tutorial({ number: 2 }),
+    ]);
+
+    expect(errors.join()).toContain('duplicate tutorial numbers: 2');
+    expect(errors.join()).toContain('must run 1..n with no gaps');
+  });
+});
+
+describe('assertValidTutorials', () => {
+  // This is the gate the seed script and CI call. If it stops throwing,
+  // unsolvable content reaches production silently.
+  it('passes valid content through without throwing', () => {
+    expect(() => assertValidTutorials([tutorial({ number: 1 })])).not.toThrow();
+  });
+
+  it('throws on invalid content', () => {
+    const unsolvable = tutorial({
+      synth: {
+        polyphony: 1,
+        type: 'Mono Synth',
+        parameters: {
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.33, decay: 0.25, sustain: 0.5, release: 1 },
+        },
+      },
+    });
+
+    expect(() => assertValidTutorials([unsolvable])).toThrow('Invalid tutorial content');
+  });
+
+  it('names every problem in the message, so one seed run reports them all', () => {
+    const errors = () => {
+      try {
+        assertValidTutorials([tutorial({ number: 1, name: '', pointsAvailable: 0 })]);
+        return '';
+      } catch (e) {
+        return (e as Error).message;
+      }
+    };
+
+    const message = errors();
+    expect(message).toContain('name must be a non-empty string');
+    expect(message).toContain('pointsAvailable must be a positive integer');
+  });
+
+  it('accepts an empty curriculum rather than failing a fresh environment', () => {
+    expect(() => assertValidTutorials([])).not.toThrow();
   });
 });

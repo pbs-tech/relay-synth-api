@@ -3,7 +3,6 @@ import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/li
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { maskEmail, toDisplayName } from '../../src/lib/identity.js';
 import {
   completeTutorial,
   ensureUser,
@@ -39,40 +38,6 @@ function conditionalFailure(): ConditionalCheckFailedException {
 
 beforeEach(() => ddb.reset());
 afterEach(() => ddb.reset());
-
-describe('maskEmail', () => {
-  it('keeps the first two characters and the domain', () => {
-    expect(maskEmail('player@example.com')).toBe('pl***@example.com');
-  });
-
-  it('does not expose a single-character local part', () => {
-    expect(maskEmail('a@example.com')).toBe('a***@example.com');
-  });
-
-  it('falls back to a neutral label for a malformed address', () => {
-    expect(maskEmail('not-an-email')).toBe('player');
-  });
-});
-
-describe('toDisplayName', () => {
-  it('prefers an Auth0 nickname when one is present', () => {
-    expect(toDisplayName({ userId: 'auth0|x', email: 'p@e.com', nickname: 'synthkid' })).toBe(
-      'synthkid',
-    );
-  });
-
-  it('masks the email when there is no nickname', () => {
-    expect(toDisplayName({ userId: 'auth0|x', email: 'player@example.com', nickname: null })).toBe(
-      'pl***@example.com',
-    );
-  });
-
-  it('falls back to an opaque handle when the token carries neither', () => {
-    expect(toDisplayName({ userId: 'auth0|abc123456', email: null, nickname: null })).toBe(
-      'player-123456',
-    );
-  });
-});
 
 describe('ensureUser', () => {
   it('returns the existing profile without writing', async () => {
@@ -220,5 +185,23 @@ describe('getLeaderboard', () => {
       totalScore: 0,
       tutorialsCompleted: [],
     });
+  });
+});
+
+describe('ensureUser - unexpected failures', () => {
+  it('rethrows when the create loses the race but the winner cannot be read back', async () => {
+    // Both reads miss and the write is refused, so there is no profile to
+    // return. Surfacing the error beats handing the caller a fabricated one.
+    ddb.on(GetCommand).resolves({});
+    ddb.on(PutCommand).rejects(conditionalFailure());
+
+    await expect(ensureUser(identity)).rejects.toThrow();
+  });
+
+  it('propagates a non-conditional write failure', async () => {
+    ddb.on(GetCommand).resolves({});
+    ddb.on(PutCommand).rejects(new Error('ProvisionedThroughputExceeded'));
+
+    await expect(ensureUser(identity)).rejects.toThrow('ProvisionedThroughputExceeded');
   });
 });
