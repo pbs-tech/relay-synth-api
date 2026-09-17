@@ -1,29 +1,140 @@
-# Automatically approve and merge Dependabot PRs for minor and patch updates
+# Automatically approve and merge Dependabot PRs for minor and patch updates,
+# but only once the CI checks that gate a human PR have gone green.
+#
+# The gate is enforced in this workflow rather than left to `gh pr merge --auto`
+# on purpose: `--auto` only holds a PR back for checks that a branch protection
+# rule or ruleset marks as required. With no such rule configured, `--auto`
+# merges the moment it is called, which would let a broken bump land. Polling
+# the check runs here makes the gate explicit and independent of repository
+# settings. If required checks are configured later this still behaves the same,
+# it just stops being the only thing standing in the way.
 name: Dependabot auto-merge
 on: pull_request
 
 permissions:
   contents: write
   pull-requests: write
+  checks: read
+
+# A force-push from Dependabot (its rebase) supersedes the run for the commit it
+# replaced, so we never merge against a SHA that is no longer the head.
+concurrency:
+  group: dependabot-auto-merge-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The checks that must be green before a bump may merge, named exactly as they
+  # appear on the PR (workflow job `name:`, not the job id). Keep this in step
+  # with the job names in ci.yml.
+  #
+  # Terraform Plan is deliberately absent: it is path-filtered, so it does not
+  # run on every bump, and it authenticates to AWS via OIDC, which a Dependabot
+  # PR cannot do. Waiting on it would hang every run that does trigger it.
+  REQUIRED_CHECKS: |
+    Typecheck, test and build
+    Terraform fmt and validate
+  # Long enough for a cold `npm ci` plus a Terraform provider download, short
+  # enough that a wedged run does not hold a runner all day.
+  CHECK_TIMEOUT_MINUTES: '30'
+  CHECK_POLL_SECONDS: '20'
 
 jobs:
   dependabot:
     runs-on: ubuntu-latest
     if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'pbs-tech/relay-synth-api'
+    timeout-minutes: 45
     steps:
       - name: Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@v2
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      # Major bumps are left entirely alone - not merged and not approved, so
+      # they cannot be merged on the strength of this workflow's approval.
+      - name: Decide whether this update is eligible
+        id: eligible
+        env:
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+        run: |
+          set -euo pipefail
+          case "$UPDATE_TYPE" in
+            version-update:semver-patch|version-update:semver-minor)
+              echo "result=true" >>"$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "result=false" >>"$GITHUB_OUTPUT"
+              echo "::notice::Update type '${UPDATE_TYPE}' is not auto-merged; leaving this PR for review."
+              ;;
+          esac
+
+      - name: Wait for required checks
+        if: steps.eligible.outputs.result == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t required < <(printf '%s\n' "$REQUIRED_CHECKS" | sed '/^[[:space:]]*$/d')
+          deadline=$(( $(date +%s) + CHECK_TIMEOUT_MINUTES * 60 ))
+
+          while :; do
+            # A re-run produces a second check run under the same name, so later
+            # entries overwrite earlier ones and the newest result wins.
+            declare -A status=() conclusion=()
+            while IFS=$'\t' read -r name state result; do
+              [ -n "$name" ] || continue
+              status["$name"]="$state"
+              conclusion["$name"]="$result"
+            done < <(gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs" \
+              --jq '.check_runs[] | [.name, .status, (.conclusion // "")] | @tsv')
+
+            pending=()
+            for name in "${required[@]}"; do
+              if [ "${status[$name]:-missing}" != completed ]; then
+                pending+=("$name")
+                continue
+              fi
+              case "${conclusion[$name]}" in
+                # `skipped` and `neutral` are how a path filter or a no-op job
+                # reports in; neither is a failure, so neither blocks the merge.
+                success|skipped|neutral) ;;
+                *)
+                  echo "::error::Required check '${name}' concluded '${conclusion[$name]}'. Not merging."
+                  exit 1
+                  ;;
+              esac
+            done
+
+            if [ ${#pending[@]} -eq 0 ]; then
+              echo "All required checks passed on ${HEAD_SHA}."
+              break
+            fi
+
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::Timed out after ${CHECK_TIMEOUT_MINUTES}m waiting for: ${pending[*]}"
+              exit 1
+            fi
+
+            echo "Waiting on: ${pending[*]}"
+            sleep "$CHECK_POLL_SECONDS"
+          done
+
       - name: Approve Dependabot PR
+        if: steps.eligible.outputs.result == 'true'
         run: gh pr review --approve "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Enable auto-merge for Dependabot PRs
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        run: gh pr merge --auto --squash "$PR_URL"
+
+      # --match-head-commit refuses the merge if the head moved while we were
+      # waiting, so the commit that merges is the one whose checks we verified.
+      - name: Merge Dependabot PR
+        if: steps.eligible.outputs.result == 'true'
+        run: gh pr merge --squash --match-head-commit "$HEAD_SHA" "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
