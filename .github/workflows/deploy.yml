@@ -62,7 +62,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'eu-west-2' }}
           role-session-name: relay-synth-deploy-${{ github.run_id }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
