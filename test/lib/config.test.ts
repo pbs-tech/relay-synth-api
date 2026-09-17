@@ -42,16 +42,16 @@ describe('config', () => {
 
     const { config } = await import('../../src/lib/config.js');
 
-    expect(config.claims.email).toBe('https://relay-synth.tech/email');
-    expect(config.claims.nickname).toBe('https://relay-synth.tech/nickname');
+    expect(config.claims.email).toBe('https://relay-synth.peebles.lol/email');
+    expect(config.claims.nickname).toBe('https://relay-synth.peebles.lol/nickname');
   });
 
   it('allows the claim namespace to be overridden per environment', async () => {
     vi.stubEnv('TABLE_NAME', 'relay-synth-dev');
-    vi.stubEnv('EMAIL_CLAIM', 'https://dev.relay-synth.tech/email');
+    vi.stubEnv('EMAIL_CLAIM', 'https://dev.relay-synth.peebles.lol/email');
 
     const { config } = await import('../../src/lib/config.js');
 
-    expect(config.claims.email).toBe('https://dev.relay-synth.tech/email');
+    expect(config.claims.email).toBe('https://dev.relay-synth.peebles.lol/email');
   });
 });

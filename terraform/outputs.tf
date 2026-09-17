@@ -1,6 +1,16 @@
 output "api_endpoint" {
   description = "Base URL of the deployed API. Set this as the frontend's API base."
+  value       = local.custom_domain_enabled ? "https://${var.api_domain_name}" : aws_apigatewayv2_stage.default.invoke_url
+}
+
+output "api_execute_url" {
+  description = "The generated execute-api URL. Always reachable, and the way in if the custom domain's DNS is misconfigured."
   value       = aws_apigatewayv2_stage.default.invoke_url
+}
+
+output "api_domain_target" {
+  description = "Regional target the api_domain_name CNAME must point at. Empty when no custom domain is configured; needed by hand only when manage_dns is false."
+  value       = local.custom_domain_enabled ? aws_apigatewayv2_domain_name.api[0].domain_name_configuration[0].target_domain_name : ""
 }
 
 output "dynamodb_table_name" {
