@@ -28,7 +28,7 @@ const devEvent = {
       jwt: {
         claims: {
           sub: process.env.DEV_USER_ID ?? 'auth0|local-development-user',
-          [config.claims.email]: process.env.DEV_USER_EMAIL ?? 'dev@relay-synth.tech',
+          [config.claims.email]: process.env.DEV_USER_EMAIL ?? 'dev@relay-synth.peebles.lol',
           [config.claims.nickname]: process.env.DEV_USER_NICKNAME ?? 'dev',
         },
       },

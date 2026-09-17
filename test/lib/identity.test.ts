@@ -14,8 +14,8 @@ describe('getIdentity', () => {
     const identity = getIdentity(
       eventWith({
         sub: 'auth0|abc123456',
-        'https://relay-synth.tech/email': 'player@example.com',
-        'https://relay-synth.tech/nickname': 'synthkid',
+        'https://relay-synth.peebles.lol/email': 'player@example.com',
+        'https://relay-synth.peebles.lol/nickname': 'synthkid',
       }),
     );
 
@@ -50,7 +50,7 @@ describe('getIdentity', () => {
 
   it('ignores a non-string claim instead of trusting it', () => {
     const identity = getIdentity(
-      eventWith({ sub: 'auth0|abc', 'https://relay-synth.tech/email': 12345 }),
+      eventWith({ sub: 'auth0|abc', 'https://relay-synth.peebles.lol/email': 12345 }),
     );
 
     expect(identity.email).toBeNull();

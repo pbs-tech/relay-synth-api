@@ -33,7 +33,7 @@ variable "auth0_domain" {
 variable "auth0_api_identifier" {
   description = "Auth0 API identifier (audience). Must match the aud claim the SPA requests."
   type        = string
-  default     = "https://api.relay-synth.tech"
+  default     = "https://api.relay-synth.peebles.lol"
 }
 
 variable "manage_auth0_tenant" {
@@ -45,13 +45,13 @@ variable "manage_auth0_tenant" {
 variable "frontend_urls" {
   description = "Origins the Auth0 SPA client may redirect back to after login and logout."
   type        = list(string)
-  default     = ["https://relay-synth.tech"]
+  default     = ["https://relay-synth.peebles.lol"]
 }
 
 variable "claim_namespace" {
   description = "Namespace for the custom claims the Auth0 Action adds to access tokens. Auth0 silently drops non-namespaced custom claims."
   type        = string
-  default     = "https://relay-synth.tech"
+  default     = "https://relay-synth.peebles.lol"
 }
 
 variable "lambda_memory_size" {
@@ -88,4 +88,27 @@ variable "enable_deletion_protection" {
   description = "Blocks `terraform destroy` from dropping the DynamoDB table. The previous database was lost; this makes losing the next one deliberate."
   type        = bool
   default     = true
+}
+
+variable "api_domain_name" {
+  description = "Custom domain to serve the API on, e.g. api.relay-synth.peebles.lol. Empty leaves the API on its generated execute-api URL."
+  type        = string
+  default     = ""
+}
+
+variable "manage_dns" {
+  description = "Whether Terraform owns the Cloudflare records for api_domain_name. Set false to create the certificate validation CNAME and the API CNAME by hand, in which case the apply blocks on certificate validation until they exist."
+  type        = bool
+  default     = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone containing api_domain_name - the apex zone (peebles.lol), not the subdomain. Shown on the zone's overview page. Only read when manage_dns is true."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = !var.manage_dns || var.api_domain_name == "" || var.cloudflare_zone_id != ""
+    error_message = "cloudflare_zone_id is required when manage_dns is true and api_domain_name is set."
+  }
 }

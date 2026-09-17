@@ -13,7 +13,7 @@ function eventFor(claims: Record<string, unknown>) {
 
 const authedEvent = eventFor({
   sub: 'auth0|abc123456',
-  'https://relay-synth.tech/email': 'player@example.com',
+  'https://relay-synth.peebles.lol/email': 'player@example.com',
 });
 
 const storedUser = {

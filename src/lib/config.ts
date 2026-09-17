@@ -24,7 +24,7 @@ export const config = {
   logLevel: optional('LOG_LEVEL', 'info'),
   /** Namespaced Auth0 custom claims, injected by the Auth0 login Action. */
   claims: {
-    email: optional('EMAIL_CLAIM', 'https://relay-synth.tech/email'),
-    nickname: optional('NICKNAME_CLAIM', 'https://relay-synth.tech/nickname'),
+    email: optional('EMAIL_CLAIM', 'https://relay-synth.peebles.lol/email'),
+    nickname: optional('NICKNAME_CLAIM', 'https://relay-synth.peebles.lol/nickname'),
   },
 } as const;

@@ -1,6 +1,6 @@
 # relay-synth-api
 
-Serverless backend for [Relay Synth](https://relay-synth.tech) — an interactive
+Serverless backend for [Relay Synth](https://relay-synth.peebles.lol) — an interactive
 synthesiser tutorial app.
 
 API Gateway (HTTP API) → Lambda (Node 22, TypeScript) → DynamoDB, provisioned
@@ -137,6 +137,7 @@ Point the leaderboard table's `Email` column at `displayName`.
 - Node 22+, Terraform 1.9+
 - An AWS account, and an Auth0 tenant
 - An S3 bucket for Terraform state
+- A Cloudflare zone for the API's domain (`peebles.lol`)
 
 ### One-time bootstrap
 
@@ -164,11 +165,52 @@ Point the leaderboard table's `Email` column at `displayName`.
    | Secret | `AWS_PLAN_ROLE_ARN` | read-only role ARN |
    | Secret | `AUTH0_CLIENT_ID` | M2M client id |
    | Secret | `AUTH0_CLIENT_SECRET` | M2M client secret |
+   | Secret | `CLOUDFLARE_API_TOKEN` | DNS token, see below |
    | Variable | `TF_STATE_BUCKET` | state bucket name |
    | Variable | `AWS_REGION` | e.g. `eu-west-2` |
 
-4. **Fill in the tfvars** — set `auth0_domain` in
-   `terraform/environments/prod.tfvars`.
+4. **Cloudflare DNS token** — create an API token scoped to `Zone:DNS:Edit` on
+   the `peebles.lol` zone and nothing else. Terraform uses it to publish the
+   ACM validation record and the API's `CNAME`. Export it when running Terraform
+   locally:
+
+   ```bash
+   export CLOUDFLARE_API_TOKEN=...
+   ```
+
+   To manage those two records by hand instead, set `manage_dns = false` and see
+   [Custom domain](#custom-domain).
+
+5. **Fill in the tfvars** — set `auth0_domain` and `cloudflare_zone_id` in
+   `terraform/environments/prod.tfvars`. The zone id is on the zone's overview
+   page in Cloudflare, and is the id of the apex zone (`peebles.lol`), not of the
+   subdomain.
+
+### Custom domain
+
+`api_domain_name` puts the API on a real hostname — `api.relay-synth.peebles.lol`
+in prod, `api.dev.relay-synth.peebles.lol` in dev. Setting it to `""` leaves that
+environment on its generated `execute-api` URL.
+
+Terraform requests an ACM certificate **in the API's own region**, since a
+regional HTTP API custom domain requires the certificate alongside it; the
+`us-east-1` requirement people remember applies to edge-optimized REST APIs and
+CloudFront. It then writes the DNS validation record, waits for issuance, and
+points a `CNAME` at the regional endpoint.
+
+Both records are deliberately **DNS-only** (grey cloud), not proxied:
+
+- Proxying replaces `$context.identity.sourceIp` in the access logs with a
+  Cloudflare address, and makes API Gateway's per-IP throttling meaningless.
+- Cloudflare's Universal SSL only covers one level of subdomain, so a name as
+  deep as `api.relay-synth.peebles.lol` would additionally need Advanced
+  Certificate Manager to be proxied.
+- ACM cannot validate a proxied validation record at all — Cloudflare answers
+  with its own addresses rather than the `CNAME` target.
+
+With `manage_dns = false`, `terraform apply` blocks on certificate validation
+until you create the record ACM asks for; `terraform output api_domain_target`
+then gives the value for the API's own `CNAME`.
 
 ### Deploy
 
