@@ -1,0 +1,391 @@
+{
+  "$comment": "Source of truth for Relay Synth tutorial content. Seeded into DynamoDB by scripts/seed.ts. Parameter values here MUST be reachable by the frontend controls - see README 'Authoring tutorials' and the guard test in test/tutorials.data.test.ts.",
+  "tutorials": [
+    {
+      "number": 1,
+      "name": "Sine Waves",
+      "category": "Waveforms",
+      "difficulty": "Easy",
+      "pointsAvailable": 100,
+      "text": "Every sound a synthesiser makes starts with an oscillator. The oscillator produces a repeating waveform, and the shape of that wave decides the character of the sound before anything else touches it. The sine wave is the simplest shape there is: a single, pure frequency with no extra harmonics above it. Because nothing else is present, a sine sounds smooth, round and slightly hollow, a bit like a tuning fork or someone whistling. Listen to the example, then look at the oscilloscope above it - a sine traces a single smooth curve with no corners. Now open the Oscillator control and work through the four waveforms until your oscilloscope traces that same smooth curve and your sound matches the example.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "sine"
+          }
+        }
+      },
+      "example": {
+        "note": "C4",
+        "duration": "8n",
+        "interval": "4n"
+      }
+    },
+    {
+      "number": 2,
+      "name": "Square Waves",
+      "category": "Waveforms",
+      "difficulty": "Easy",
+      "pointsAvailable": 100,
+      "text": "A square wave jumps instantly between its highest and lowest value and holds there, which is why the oscilloscope draws it with hard vertical edges and flat tops. Those instant jumps add a whole series of odd harmonics on top of the fundamental note, and odd harmonics are what your ear reads as hollow and reedy. It is the sound behind most early video game music, and it makes a convincing clarinet. Compare it against the sine you just made: same note, same pitch, but far more buzz sitting on top of it. Find the waveform that draws flat tops and vertical edges.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "square"
+          }
+        }
+      },
+      "example": {
+        "note": "C4",
+        "duration": "8n",
+        "interval": "4n"
+      }
+    },
+    {
+      "number": 3,
+      "name": "Sawtooth Waves",
+      "category": "Waveforms",
+      "difficulty": "Easy",
+      "pointsAvailable": 100,
+      "text": "The sawtooth ramps steadily up and then drops straight back down, giving the jagged tooth shape it is named after. It contains every harmonic - odd and even - which makes it the brightest and buzziest of the four basic waveforms. That richness is exactly why it is the traditional starting point for string sounds, brass sounds and aggressive lead lines: there is plenty of harmonic material there for a filter to carve into later. Keep that in mind, because from Tutorial 9 onwards the sawtooth is the wave you will be shaping. Match the example by finding the wave that ramps up and drops sharply.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "sawtooth"
+          }
+        }
+      },
+      "example": {
+        "note": "C3",
+        "duration": "4n",
+        "interval": "2n"
+      }
+    },
+    {
+      "number": 4,
+      "name": "Triangle Waves",
+      "category": "Waveforms",
+      "difficulty": "Easy",
+      "pointsAvailable": 100,
+      "text": "The triangle wave is the last of the four basic shapes and sits between the sine and the square. Like the square it only contains odd harmonics, but they fall away much more steeply, so only the first few are loud enough to matter. The result is a sound nearly as soft as a sine but with a little more body and edge to it - useful for flute-like tones and for mellow bass that still cuts through a mix. On the oscilloscope it climbs and falls in straight diagonal lines rather than curves. You have now heard all four waveforms; pick the one that draws straight diagonal slopes.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "triangle"
+          }
+        }
+      },
+      "example": {
+        "note": "E4",
+        "duration": "8n",
+        "interval": "4n"
+      }
+    },
+    {
+      "number": 5,
+      "name": "Attack: How a Sound Begins",
+      "category": "Amplitude Envelope",
+      "difficulty": "Easy",
+      "pointsAvailable": 150,
+      "text": "An oscillator on its own drones forever at a constant volume. What makes a note sound like an instrument being played is the envelope: a set of instructions describing how loudness changes over the life of the note. The envelope has four stages - Attack, Decay, Sustain and Release - and this tutorial covers the first. Attack is how long the sound takes to climb from silence to full volume. A very short attack gives a percussive, immediate start, like a piano key or a drum. A long attack fades the note in gradually and is what makes pads, swells and bowed strings feel soft rather than struck. Here the attack is pushed all the way up, so the note blooms in slowly instead of arriving at once. Set the Attack slider to its maximum and leave the other three envelope sliders where they are.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "sine"
+          },
+          "envelope": {
+            "attack": 1,
+            "decay": 0.25,
+            "sustain": 0.5,
+            "release": 1
+          }
+        }
+      },
+      "example": {
+        "note": "G3",
+        "duration": "2n",
+        "interval": "1n"
+      }
+    },
+    {
+      "number": 6,
+      "name": "Release: How a Sound Ends",
+      "category": "Amplitude Envelope",
+      "difficulty": "Easy",
+      "pointsAvailable": 150,
+      "text": "Release is the mirror image of attack: it controls how long a note takes to fade to silence after the key is let go. A long release lets notes ring on and overlap each other, which is what gives pads and ambient sounds their sense of space. A release of nearly zero cuts the sound off the instant you release the key, making it tight and abrupt - the difference between a sustain pedal held down and lifted. Listen closely to the end of each note in the example; it stops dead rather than trailing away. Pull the Release slider all the way down to get that same hard stop, leaving attack, decay and sustain untouched.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "triangle"
+          },
+          "envelope": {
+            "attack": 0,
+            "decay": 0.25,
+            "sustain": 0.5,
+            "release": 0.01
+          }
+        }
+      },
+      "example": {
+        "note": "A3",
+        "duration": "8n",
+        "interval": "4n"
+      }
+    },
+    {
+      "number": 7,
+      "name": "Decay and Sustain: The Plucked String",
+      "category": "Amplitude Envelope",
+      "difficulty": "Medium",
+      "pointsAvailable": 200,
+      "text": "Decay and sustain work as a pair and are the two stages people find hardest to separate. After the attack reaches full volume, Decay is how long the sound takes to fall to its Sustain level - and Sustain, unlike the other three, is not a time at all but a volume. It is the level the note holds at for as long as the key stays down. Set sustain high and the note keeps ringing. Set sustain to zero and the note falls silent as soon as the decay finishes, no matter how long you hold the key. That is precisely how a plucked or struck string behaves: a guitar string has no way to keep feeding energy into itself, so it can only fade. This tutorial uses a sawtooth with a short decay and zero sustain to imitate exactly that. Drop the Sustain slider to zero and set Decay one step up from the bottom.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "sawtooth"
+          },
+          "envelope": {
+            "attack": 0,
+            "decay": 0.25,
+            "sustain": 0,
+            "release": 0.25
+          }
+        }
+      },
+      "example": {
+        "note": "D4",
+        "duration": "8n",
+        "interval": "4n"
+      }
+    },
+    {
+      "number": 8,
+      "name": "Full ADSR: Building a Pad",
+      "category": "Amplitude Envelope",
+      "difficulty": "Medium",
+      "pointsAvailable": 250,
+      "text": "Now put all four stages together. A pad is the classic test of an envelope because it is defined almost entirely by its shape rather than its waveform: slow in, slow out, and holding at a high level in between. The attack is long so the sound swells rather than strikes, the decay is moderate, the sustain sits high so the note stays present while held, and the release is long so notes bleed into one another as chords change. This is the same square wave you met in Tutorial 2, but the envelope transforms it from a sharp video-game blip into something soft and sustained - proof that the envelope shapes a sound as decisively as the oscillator does. You will need to move all four sliders for this one.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "square"
+          },
+          "envelope": {
+            "attack": 0.75,
+            "decay": 0.5,
+            "sustain": 0.75,
+            "release": 1
+          }
+        }
+      },
+      "example": {
+        "note": "C3",
+        "duration": "1n",
+        "interval": "1n"
+      }
+    },
+    {
+      "number": 9,
+      "name": "The Low-Pass Filter",
+      "category": "Filters",
+      "difficulty": "Medium",
+      "pointsAvailable": 250,
+      "text": "A filter removes frequencies from a sound that the oscillator has already produced. This approach - start with something harmonically rich, then carve material away - is called subtractive synthesis, and it is how the overwhelming majority of classic synthesisers work. The low-pass filter is the one you will reach for most often. It lets everything below its cutoff frequency pass through untouched and progressively attenuates everything above it, so the high harmonics are stripped out while the fundamental remains. The effect is to make a bright sound darker, warmer and further away. It works best on a wave with plenty of harmonics to remove, which is why the example uses a sawtooth. Open the Filter Settings control and work through the filter types until the buzz is tamed.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "sawtooth"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 5000
+          }
+        }
+      },
+      "example": {
+        "note": "C3",
+        "duration": "4n",
+        "interval": "2n"
+      }
+    },
+    {
+      "number": 10,
+      "name": "The High-Pass Filter",
+      "category": "Filters",
+      "difficulty": "Medium",
+      "pointsAvailable": 250,
+      "text": "The high-pass filter does the exact opposite of the low-pass: it removes everything below the cutoff and lets the frequencies above it through. Taking the fundamental and lower harmonics out leaves a sound that is thin, bright and weightless - it loses its body but keeps its edge. In practice this is less about making a sound pretty on its own and more about making room. Strip the low end from a synth part and it stops competing with the bass and the kick drum, letting it sit on top of a busy mix without muddying it. Compare this to the previous tutorial: same idea, opposite direction. Find the filter type that thins the square wave out rather than darkening it.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "square"
+          },
+          "filter": {
+            "type": "highpass",
+            "frequency": 5000
+          }
+        }
+      },
+      "example": {
+        "note": "G4",
+        "duration": "8n",
+        "interval": "4n"
+      }
+    },
+    {
+      "number": 11,
+      "name": "The Band-Pass Filter",
+      "category": "Filters",
+      "difficulty": "Medium",
+      "pointsAvailable": 300,
+      "text": "A band-pass filter is a low-pass and a high-pass working at once: it discards frequencies both above and below the cutoff and allows only a narrow band through in the middle. Because so much of the sound is thrown away, the result is characteristically nasal and boxy, as though the sound were coming through a telephone or a small speaker. That narrowness is the point - band-pass filtering is how you get wah, vocal and formant-like qualities out of a synth, especially once the cutoff is being moved around rather than held still. You now know all three filter types in this tutorial series, so identify the one that leaves only the middle of the sawtooth intact.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "sawtooth"
+          },
+          "filter": {
+            "type": "bandpass",
+            "frequency": 5000
+          }
+        }
+      },
+      "example": {
+        "note": "A3",
+        "duration": "4n",
+        "interval": "2n"
+      }
+    },
+    {
+      "number": 12,
+      "name": "The Filter Sweep",
+      "category": "Filter Envelope",
+      "difficulty": "Hard",
+      "pointsAvailable": 350,
+      "text": "So far the filter has stayed fixed for the whole length of the note. The filter envelope changes that. It has the same four stages as the amplitude envelope - attack, decay, sustain, release - but instead of controlling volume it moves the filter cutoff over time. This is one of the most recognisable sounds in electronic music: the slow filter sweep, where a long attack drags the cutoff upward and the sound gradually opens up from muffled to brilliant as the note is held. Acoustic instruments behave in a related way, growing brighter as they are played harder, which is part of why a moving filter sounds alive where a static one sounds synthetic. Both envelope panels are on screen now, so check you are adjusting the Filter Envelope and not the Amplitude Envelope: long attack, medium decay, low sustain, long release.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "sawtooth"
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 5000
+          },
+          "filterEnvelope": {
+            "attack": 1,
+            "decay": 0.5,
+            "sustain": 0.25,
+            "release": 1
+          }
+        }
+      },
+      "example": {
+        "note": "C3",
+        "duration": "1n",
+        "interval": "1n"
+      }
+    },
+    {
+      "number": 13,
+      "name": "Putting It Together: A Bass Patch",
+      "category": "Sound Design",
+      "difficulty": "Hard",
+      "pointsAvailable": 400,
+      "text": "Time to use everything at once. A synth bass has a recognisable recipe. Start with a harmonically rich wave so the filter has material to work with. Give it an instant attack so each note lands precisely on the beat, then a short decay to a low sustain so notes stay tight and separate instead of blurring into each other. Run it through a low-pass filter to keep the weight down at the bottom of the spectrum where a bass belongs. Finally, and this is the part that makes it sound like a real bass rather than a dull drone, give the filter envelope a fast decay to zero sustain. That produces a brief bright click at the very start of each note before the filter clamps shut - the percussive attack of a finger on a string. All four control panels are in play here; work through them one at a time and check your answer as you go.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "square"
+          },
+          "envelope": {
+            "attack": 0,
+            "decay": 0.5,
+            "sustain": 0.25,
+            "release": 0.25
+          },
+          "filter": {
+            "type": "lowpass",
+            "frequency": 5000
+          },
+          "filterEnvelope": {
+            "attack": 0,
+            "decay": 0.25,
+            "sustain": 0,
+            "release": 0.25
+          }
+        }
+      },
+      "example": {
+        "note": "C2",
+        "duration": "8n",
+        "interval": "4n"
+      }
+    },
+    {
+      "number": 14,
+      "name": "Putting It Together: A Lead Patch",
+      "category": "Sound Design",
+      "difficulty": "Hard",
+      "pointsAvailable": 500,
+      "text": "The final tutorial, and the counterpart to the bass you just built. Where a bass has to stay out of the way, a lead has to carry the melody, so every decision is reversed. The sawtooth gives the brightest possible starting point. A short but not instant attack softens the front of each note so it sounds played rather than triggered. A high sustain keeps the note singing for as long as it is held, and a medium release lets phrases join up smoothly. The band-pass filter is the distinctive choice: rather than simply darkening the tone it hollows out a vocal, nasal quality that cuts through a dense arrangement far better than sheer brightness would. A gentle filter envelope on top keeps the timbre shifting slightly across the note so it never sounds static. Get this one and you have used every control the synth has. Good luck.",
+      "synth": {
+        "polyphony": 1,
+        "type": "Mono Synth",
+        "parameters": {
+          "oscillator": {
+            "type": "sawtooth"
+          },
+          "envelope": {
+            "attack": 0.25,
+            "decay": 0.25,
+            "sustain": 0.75,
+            "release": 0.5
+          },
+          "filter": {
+            "type": "bandpass",
+            "frequency": 5000
+          },
+          "filterEnvelope": {
+            "attack": 0.25,
+            "decay": 0.5,
+            "sustain": 0.5,
+            "release": 0.75
+          }
+        }
+      },
+      "example": {
+        "note": "E4",
+        "duration": "4n",
+        "interval": "2n"
+      }
+    }
+  ]
+}
