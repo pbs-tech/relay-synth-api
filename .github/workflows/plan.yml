@@ -46,7 +46,7 @@ jobs:
       # A read-only role. Plans run on PR head, which is untrusted input, so it
       # must never hold permission to mutate anything.
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION || 'eu-west-2' }}
