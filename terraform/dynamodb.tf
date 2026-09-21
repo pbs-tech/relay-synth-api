@@ -9,16 +9,9 @@
 resource "aws_dynamodb_table" "main" {
   name         = local.name
   billing_mode = "PAY_PER_REQUEST"
-
-  key_schema {
-    attribute_name = "PK"
-    key_type       = "HASH"
-  }
-
-  key_schema {
-    attribute_name = "SK"
-    key_type       = "RANGE"
-  }
+  # The table has no key_schema block; only global_secondary_index moved to it.
+  hash_key  = "PK"
+  range_key = "SK"
 
   attribute {
     name = "PK"
