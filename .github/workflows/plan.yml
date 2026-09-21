@@ -5,10 +5,10 @@ name: Terraform Plan
 on:
   pull_request:
     paths:
-      - 'terraform/**'
-      - 'src/**'
-      - 'package-lock.json'
-      - '.github/workflows/plan.yml'
+      - "terraform/**"
+      - "src/**"
+      - "package-lock.json"
+      - ".github/workflows/plan.yml"
 
 concurrency:
   group: plan-${{ github.ref }}
@@ -20,8 +20,8 @@ permissions:
   pull-requests: write # To post the plan as a comment.
 
 env:
-  NODE_VERSION: '22'
-  TERRAFORM_VERSION: '1.10.5'
+  NODE_VERSION: "22"
+  TERRAFORM_VERSION: "1.10.5"
   TF_ENVIRONMENT: prod
 
 jobs:
@@ -61,7 +61,7 @@ jobs:
         run: |
           terraform init -input=false \
             -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
-            -backend-config="key=api/${TF_ENVIRONMENT}.tfstate" \
+            -backend-config="key=relay-synth-api/${TF_ENVIRONMENT}.tfstate" \
             -backend-config="region=${{ vars.AWS_REGION || 'eu-west-2' }}" \
             -backend-config="use_lockfile=true"
 
