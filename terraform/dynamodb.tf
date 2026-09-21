@@ -9,8 +9,9 @@
 resource "aws_dynamodb_table" "main" {
   name         = local.name
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "PK"
-  range_key    = "SK"
+  # The table has no key_schema block; only global_secondary_index moved to it.
+  hash_key  = "PK"
+  range_key = "SK"
 
   attribute {
     name = "PK"
@@ -33,9 +34,18 @@ resource "aws_dynamodb_table" "main" {
   }
 
   global_secondary_index {
-    name            = "GSI1"
-    hash_key        = "GSI1PK"
-    range_key       = "GSI1SK"
+    name = "GSI1"
+
+    key_schema {
+      attribute_name = "GSI1PK"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "GSI1SK"
+      key_type       = "RANGE"
+    }
+
     projection_type = "INCLUDE"
     # Only what the leaderboard renders, so the index stays small and the query
     # never has to fetch back to the base table.

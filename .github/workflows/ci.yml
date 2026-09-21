@@ -1,9 +1,8 @@
 name: CI
 
+# PR-only: a push to a branch with an open PR would otherwise run everything twice.
 on:
   pull_request:
-  push:
-    branches-ignore: [master]
 
 # A new push supersedes an in-flight run on the same ref.
 concurrency:
