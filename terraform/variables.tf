@@ -112,3 +112,33 @@ variable "cloudflare_zone_id" {
     error_message = "cloudflare_zone_id is required when manage_dns is true and api_domain_name is set."
   }
 }
+
+variable "cloudflare_account_id" {
+  description = "Cloudflare account that owns the Pages project. Empty disables the Pages resources entirely. The zone id is not enough: Pages is an account-level product."
+  type        = string
+  default     = ""
+}
+
+variable "pages_project_name" {
+  description = "Name of the Cloudflare Pages project serving the frontend, and the label in its pages.dev hostname. Empty disables the Pages resources entirely."
+  type        = string
+  default     = ""
+}
+
+variable "pages_production_branch" {
+  description = "Branch Pages treats as production. A deploy from any other branch is published as a preview instead."
+  type        = string
+  default     = "master"
+}
+
+variable "frontend_domain_name" {
+  description = "Domain the frontend is served from. Only used when manage_frontend_dns is true; it must also appear in frontend_urls, which is what Auth0 allows redirects to."
+  type        = string
+  default     = ""
+}
+
+variable "manage_frontend_dns" {
+  description = "Point frontend_domain_name at the Pages project. This is the cutover away from the current host and the one change here that moves live traffic, so it is off until deliberately turned on."
+  type        = bool
+  default     = false
+}
