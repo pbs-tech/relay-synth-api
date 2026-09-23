@@ -106,11 +106,6 @@ variable "cloudflare_zone_id" {
   description = "Cloudflare zone containing api_domain_name - the apex zone (peebles.lol), not the subdomain. Shown on the zone's overview page. Only read when manage_dns is true."
   type        = string
   default     = ""
-
-  validation {
-    condition     = !var.manage_dns || var.api_domain_name == "" || var.cloudflare_zone_id != ""
-    error_message = "cloudflare_zone_id is required when manage_dns is true and api_domain_name is set."
-  }
 }
 
 variable "cloudflare_account_id" {
