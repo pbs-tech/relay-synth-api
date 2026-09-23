@@ -134,11 +134,11 @@ variable "pages_production_branch" {
 variable "frontend_domain_name" {
   description = "Domain the frontend is served from. Only used when manage_frontend_dns is true; it must also appear in frontend_urls, which is what Auth0 allows redirects to."
   type        = string
-  default     = ""
+  default     = "relay-synth"
 }
 
 variable "manage_frontend_dns" {
   description = "Point frontend_domain_name at the Pages project. This is the cutover away from the current host and the one change here that moves live traffic, so it is off until deliberately turned on."
   type        = bool
-  default     = false
+  default     = true
 }
