@@ -212,6 +212,36 @@ With `manage_dns = false`, `terraform apply` blocks on certificate validation
 until you create the record ACM asks for; `terraform output api_domain_target`
 then gives the value for the API's own `CNAME`.
 
+### Frontend hosting (Cloudflare Pages)
+
+`terraform/pages.tf` creates the Cloudflare Pages project that serves
+[`relay-synth-app`](https://github.com/pbs-tech/relay-synth-app). It lives here
+rather than in the app's repo because the zone the DNS record goes in and the
+Auth0 SPA client whose callbacks must match the site's origin are both already
+in this state.
+
+The resources are off unless asked for:
+
+| Variable | Effect |
+| --- | --- |
+| `cloudflare_account_id` | Required for any Pages resource. Pages is account-level, so the zone id is not enough |
+| `pages_project_name` | Creates the project. Moves no traffic - the site is reachable at `<name>.pages.dev` and the apex is untouched |
+| `frontend_domain_name` | The domain to serve from. Must also be in `frontend_urls` |
+| `manage_frontend_dns` | **The cutover.** Attaches the custom domain and points the apex at Pages |
+
+So the safe order is: set the account id and project name, apply, deploy the
+app to the project, check it on `terraform output pages_hostname`, and only
+then set `manage_frontend_dns = true`. Reverting that variable moves the apex
+back.
+
+The `CLOUDFLARE_API_TOKEN` needs **Account > Cloudflare Pages: Edit** on top of
+the `Zone > DNS: Edit` the API records already require.
+
+Unlike the API's records, the frontend's `CNAME` is **proxied** (orange cloud).
+The reasons the API is DNS-only are all API Gateway's - source IPs in access
+logs, per-IP throttling, Universal SSL depth at `api.` - and none of them apply
+to a static site that wants the CDN in front of it.
+
 ### Deploy
 
 CI/CD handles this on merge to `master`. To deploy by hand:

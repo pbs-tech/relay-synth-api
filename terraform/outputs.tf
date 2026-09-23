@@ -37,3 +37,13 @@ output "auth0_spa_client_id" {
   description = "Client ID for the SPA. Empty when manage_auth0_tenant is false."
   value       = var.manage_auth0_tenant ? auth0_client.spa[0].client_id : ""
 }
+
+output "pages_hostname" {
+  description = "The Pages project's own hostname. Serves the site whether or not the custom domain has been cut over, which makes it the way to check a deploy before moving DNS."
+  value       = local.pages_hostname
+}
+
+output "pages_project_name" {
+  description = "Pages project name, as the frontend's deploy workflow needs it. Empty when the Pages resources are disabled."
+  value       = local.pages_enabled ? cloudflare_pages_project.app[0].name : ""
+}
