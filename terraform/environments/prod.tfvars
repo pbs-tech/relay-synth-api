@@ -15,6 +15,6 @@ log_retention_days = 30
 lambda_memory_size = 512
 
 manage_frontend_dns = true
-pages_project_name = "relay-synth"
+pages_project_name  = "relay-synth"
 
 frontend_domain_name = "relay-synth.peebles.lol"
