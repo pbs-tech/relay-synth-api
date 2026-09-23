@@ -244,11 +244,18 @@ to a static site that wants the CDN in front of it.
 
 #### Environments and branch previews
 
-Dev and prod are separate stacks with **separate Auth0 tenants**:
-`auth0_domain` differs per tfvars file, and each GitHub Environment (`dev`,
-`prod`) holds its own tenant's Management API credentials as `AUTH0_CLIENT_ID`
+Dev and prod are separate stacks in **one Auth0 tenant**
+(`a-peebles.uk.auth0.com`). Each has its own API (audience) and SPA client,
+named `relay-synth-<environment>`, and each GitHub Environment (`dev`, `prod`)
+holds its own Management API application's credentials as `AUTH0_CLIENT_ID`
 and `AUTH0_CLIENT_SECRET`. Deploys and PR plans both run in the environment
 they target, which is what selects the right pair.
+
+The tenant's post-login trigger binding is tenant-wide, so only prod manages
+it; dev sets `manage_auth0_login_flow = false`. Prod's Action runs for every
+login in the tenant, so dev's tokens carry the same claims. Deploy dev before
+prod whenever that setting changes: dev giving up the binding clears it, and
+prod then recreates it.
 
 The app's Pages workflow publishes every non-`master` branch as a preview at
 `<branch>.relay-synth.pages.dev`, and previews use **dev**. The app repo's
@@ -260,7 +267,7 @@ carries prod's; the Deploy run summary here lists both sets.
 and adds `https://*` to dev's CORS, because an HTTP API cannot match a
 subdomain wildcard. That is acceptable for dev since CORS is not what guards
 the data - every route but `GET /` needs a token for dev's audience, which
-dev's tenant only issues to the allowed origins. Prod leaves it empty.
+Auth0 only issues to dev's allowed origins. Prod leaves it empty.
 
 ### Deploy
 

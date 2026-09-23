@@ -3,7 +3,9 @@ aws_region      = "eu-west-2"
 allowed_origins = ["https://relay-synth.peebles.lol"]
 frontend_urls   = ["https://relay-synth.peebles.lol"]
 
-# Replace with your tenant domain, e.g. relay-synth.eu.auth0.com
+# Shared with dev; each environment has its own Management API application
+# (the AUTH0_* secrets on its GitHub Environment) and its own API and SPA
+# client, named relay-synth-<environment>.
 auth0_domain = "a-peebles.uk.auth0.com"
 # An opaque identifier, not a URL Auth0 resolves. It only has to match the
 # audience the SPA requests and the authorizer's configured audience.

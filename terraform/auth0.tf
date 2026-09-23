@@ -69,7 +69,7 @@ resource "auth0_client" "spa" {
 # can store a contact address and derive a leaderboard display name without
 # having to call /userinfo on every request.
 resource "auth0_action" "add_claims" {
-  count = var.manage_auth0_tenant ? 1 : 0
+  count = var.manage_auth0_tenant && var.manage_auth0_login_flow ? 1 : 0
 
   name    = "${local.name}-add-claims"
   runtime = "node18"
@@ -91,10 +91,11 @@ resource "auth0_action" "add_claims" {
   JS
 }
 
-# Tenant-wide: this replaces every post-login binding, which is one reason each
-# environment has its own tenant.
+# Tenant-wide: this replaces every post-login binding. Dev and prod share a
+# tenant, so only prod manages it (dev sets manage_auth0_login_flow = false);
+# the Action runs for every login in the tenant, dev's included.
 resource "auth0_trigger_actions" "post_login" {
-  count = var.manage_auth0_tenant ? 1 : 0
+  count = var.manage_auth0_tenant && var.manage_auth0_login_flow ? 1 : 0
 
   trigger = "post-login"
 

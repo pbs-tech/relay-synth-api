@@ -48,6 +48,12 @@ variable "frontend_urls" {
   default     = ["https://relay-synth.peebles.lol"]
 }
 
+variable "manage_auth0_login_flow" {
+  description = "Whether this stack owns the tenant's post-login trigger binding. The binding is tenant-wide, so only one environment sharing a tenant may manage it; the others get the same claims from it, since the Action runs for every login."
+  type        = bool
+  default     = true
+}
+
 variable "preview_pages_hostname" {
   description = "Pages hostname whose deploys (<branch>.<hostname>) may sign in and call this API, e.g. relay-synth.pages.dev. Adds a wildcard to the Auth0 SPA client and, because HTTP API CORS cannot match a subdomain wildcard, allows any https origin in CORS. Meant for dev only. Empty disables it."
   type        = string
