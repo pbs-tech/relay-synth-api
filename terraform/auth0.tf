@@ -19,6 +19,18 @@ resource "auth0_resource_server" "api" {
   allow_offline_access   = true
 }
 
+locals {
+  # Every Pages deploy is served from the project's hostname and, for branches,
+  # from <branch>.<hostname>. The wildcard matches exactly one label, which is
+  # what a branch alias or a deployment hash is.
+  preview_origins = var.preview_pages_hostname == "" ? [] : [
+    "https://${var.preview_pages_hostname}",
+    "https://*.${var.preview_pages_hostname}",
+  ]
+
+  spa_origins = concat(var.frontend_urls, local.preview_origins)
+}
+
 resource "auth0_client" "spa" {
   count = var.manage_auth0_tenant ? 1 : 0
 
@@ -26,9 +38,13 @@ resource "auth0_client" "spa" {
   description = "Relay Synth single page app"
   app_type    = "spa"
 
-  callbacks           = var.frontend_urls
-  allowed_logout_urls = var.frontend_urls
-  web_origins         = var.frontend_urls
+  # The SPA redirects to <origin>/callback after login and Auth0 matches
+  # callbacks exactly, so the bare origin alone rejects every login. It stays
+  # listed for anything still redirecting there. Logout URLs and web origins
+  # are origins only - Auth0 rejects a web origin with a path.
+  callbacks           = concat(local.spa_origins, [for origin in local.spa_origins : "${origin}/callback"])
+  allowed_logout_urls = local.spa_origins
+  web_origins         = local.spa_origins
 
   # Authorization code with PKCE. A SPA cannot hold a client secret, and the
   # implicit flow returns tokens in the URL fragment where they leak into history.
@@ -53,7 +69,7 @@ resource "auth0_client" "spa" {
 # can store a contact address and derive a leaderboard display name without
 # having to call /userinfo on every request.
 resource "auth0_action" "add_claims" {
-  count = var.manage_auth0_tenant ? 1 : 0
+  count = var.manage_auth0_tenant && var.manage_auth0_login_flow ? 1 : 0
 
   name    = "${local.name}-add-claims"
   runtime = "node18"
@@ -75,8 +91,11 @@ resource "auth0_action" "add_claims" {
   JS
 }
 
+# Tenant-wide: this replaces every post-login binding, so an environment that
+# shares the tenant sets manage_auth0_login_flow = false rather than fighting
+# the owner over it.
 resource "auth0_trigger_actions" "post_login" {
-  count = var.manage_auth0_tenant ? 1 : 0
+  count = var.manage_auth0_tenant && var.manage_auth0_login_flow ? 1 : 0
 
   trigger = "post-login"
 

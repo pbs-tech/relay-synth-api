@@ -18,7 +18,13 @@ resource "aws_apigatewayv2_api" "main" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = var.allowed_origins
+    # HTTP API CORS takes exact origins, "*" or "https://*"; it cannot match
+    # *.project.pages.dev, so allowing previews means allowing "https://*".
+    # Scoped to environments that set preview_pages_hostname (dev), and CORS
+    # is not the control that protects the data: every route but the health
+    # check needs a bearer token for this audience, which Auth0 only issues to
+    # the SPA client's allowed origins.
+    allow_origins = concat(var.allowed_origins, var.preview_pages_hostname == "" ? [] : ["https://*"])
     allow_methods = ["GET", "POST", "OPTIONS"]
     allow_headers = ["authorization", "content-type"]
     # Tokens travel in the Authorization header, not cookies, so credentialed
