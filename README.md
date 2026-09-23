@@ -10,7 +10,7 @@ with Terraform. Authentication is delegated to Auth0.
 
 ## Architecture
 
-```
+```text
 Browser ──► API Gateway HTTP API ──► Lambda ──────► DynamoDB
               │  JWT authorizer      ├ tutorials    single table
               │  (Auth0 JWKS)        ├ users        + GSI1 leaderboard
@@ -242,6 +242,26 @@ The reasons the API is DNS-only are all API Gateway's - source IPs in access
 logs, per-IP throttling, Universal SSL depth at `api.` - and none of them apply
 to a static site that wants the CDN in front of it.
 
+#### Environments and branch previews
+
+Dev and prod are separate stacks with **separate Auth0 tenants**:
+`auth0_domain` differs per tfvars file, and each GitHub Environment (`dev`,
+`prod`) holds its own tenant's Management API credentials as `AUTH0_CLIENT_ID`
+and `AUTH0_CLIENT_SECRET`. Deploys and PR plans both run in the environment
+they target, which is what selects the right pair.
+
+The app's Pages workflow publishes every non-`master` branch as a preview at
+`<branch>.relay-synth.pages.dev`, and previews use **dev**. The app repo's
+`preview` GitHub Environment carries dev's values and its `prod` environment
+carries prod's; the Deploy run summary here lists both sets.
+
+`preview_pages_hostname` in `dev.tfvars` is what lets previews in. It adds
+`https://*.relay-synth.pages.dev` (and `/callback`) to dev's Auth0 SPA client,
+and adds `https://*` to dev's CORS, because an HTTP API cannot match a
+subdomain wildcard. That is acceptable for dev since CORS is not what guards
+the data - every route but `GET /` needs a token for dev's audience, which
+dev's tenant only issues to the allowed origins. Prod leaves it empty.
+
 ### Deploy
 
 CI/CD handles this on merge to `master`. To deploy by hand:
@@ -287,6 +307,7 @@ and deletion protection on in production.
 
 - **Tutorial content** — never needs restoring. Re-run `npm run seed`.
 - **Player progress** — restore via PITR:
+
   ```bash
   aws dynamodb restore-table-to-point-in-time \
     --source-table-name relay-synth-prod \
