@@ -105,6 +105,9 @@ jobs:
           {
             echo "table_name=$(terraform output -raw dynamodb_table_name)"
             echo "api_endpoint=$(terraform output -raw api_endpoint)"
+            echo "auth0_domain=$(terraform output -raw auth0_domain)"
+            echo "auth0_audience=$(terraform output -raw auth0_audience)"
+            echo "auth0_spa_client_id=$(terraform output -raw auth0_spa_client_id)"
           } >> "$GITHUB_OUTPUT"
 
       # Idempotent: writes by primary key, so every deploy reconciles the table
@@ -135,4 +138,16 @@ jobs:
             echo "- API: ${{ steps.tf.outputs.api_endpoint }}"
             echo "- Table: \`${{ steps.tf.outputs.table_name }}\`"
             echo "- Commit: \`${GITHUB_SHA::7}\`"
+            echo ""
+            echo "#### Frontend configuration"
+            echo ""
+            echo "Set these on the app repo's matching GitHub Environment"
+            echo "(\`prod\` for prod, \`preview\` for dev). All are public values."
+            echo ""
+            echo "| Variable | Value |"
+            echo "| --- | --- |"
+            echo "| \`API_BASE_URL\` | ${{ steps.tf.outputs.api_endpoint }} |"
+            echo "| \`VUE_APP_AUTH0_DOMAIN\` | ${{ steps.tf.outputs.auth0_domain }} |"
+            echo "| \`VUE_APP_AUTH0_AUDIENCE\` | ${{ steps.tf.outputs.auth0_audience }} |"
+            echo "| \`VUE_APP_AUTH0_CLIENT_ID\` | ${{ steps.tf.outputs.auth0_spa_client_id }} |"
           } >> "$GITHUB_STEP_SUMMARY"
