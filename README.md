@@ -157,17 +157,23 @@ Point the leaderboard table's `Email` column at `displayName`.
 
 3. **GitHub OIDC** — create two IAM roles trusting
    `token.actions.githubusercontent.com`: one read-only for plans, one with
-   deploy permissions. Then set on the repository:
+   deploy permissions. Then set on the repository, and on each GitHub
+   Environment (`dev`, `prod`) where the table says so:
 
-   | Kind | Name | Value |
-   | --- | --- | --- |
-   | Secret | `AWS_DEPLOY_ROLE_ARN` | deploy role ARN |
-   | Secret | `AWS_PLAN_ROLE_ARN` | read-only role ARN |
-   | Secret | `AUTH0_CLIENT_ID` | M2M client id |
-   | Secret | `AUTH0_CLIENT_SECRET` | M2M client secret |
-   | Secret | `CLOUDFLARE_API_TOKEN` | DNS token, see below |
-   | Variable | `TF_STATE_BUCKET` | state bucket name |
-   | Variable | `AWS_REGION` | e.g. `eu-west-2` |
+   | Kind | Where | Name | Value |
+   | --- | --- | --- | --- |
+   | Secret | repo | `AWS_DEPLOY_ROLE_ARN` | deploy role ARN |
+   | Secret | repo | `AWS_PLAN_ROLE_ARN` | read-only role ARN |
+   | Secret | env | `AUTH0_CLIENT_ID` | that environment's M2M client id |
+   | Secret | env | `AUTH0_CLIENT_SECRET` | that environment's M2M secret |
+   | Secret | repo | `CLOUDFLARE_API_TOKEN` | DNS token, see below |
+   | Secret or variable | repo | `TF_VAR_CLOUDFLARE_ACCOUNT_ID` | account id |
+   | Secret or variable | repo | `TF_VAR_CLOUDFLARE_ZONE_ID` | `peebles.lol` zone id |
+   | Variable | repo | `TF_STATE_BUCKET` | state bucket name |
+   | Variable | repo | `AWS_REGION` | e.g. `eu-west-2` |
+
+   An environment secret shadows a repository secret of the same name, so a
+   leftover repo-level `AUTH0_*` pair is ignored by every job here.
 
 4. **Cloudflare DNS token** — create an API token scoped to `Zone:DNS:Edit` on
    the `peebles.lol` zone and nothing else. Terraform uses it to publish the

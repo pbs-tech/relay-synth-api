@@ -32,9 +32,9 @@ jobs:
       fail-fast: false
       matrix:
         environment: [dev, prod]
-    # Each environment has its own Auth0 tenant, so its Management API
+    # Each environment has its own Auth0 Management API application, so its
     # credentials are environment secrets. Running in the environment is what
-    # makes secrets.AUTH0_* resolve to the right tenant's pair.
+    # makes secrets.AUTH0_* resolve to that environment's pair.
     environment: ${{ matrix.environment }}
     env:
       TF_ENVIRONMENT: ${{ matrix.environment }}
