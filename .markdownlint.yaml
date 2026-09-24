@@ -1,0 +1,5 @@
+# Tables and code blocks cannot wrap without breaking them.
+MD013:
+  line_length: 80
+  tables: false
+  code_blocks: false

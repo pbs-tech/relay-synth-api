@@ -10,7 +10,7 @@ with Terraform. Authentication is delegated to Auth0.
 
 ## Architecture
 
-```
+```text
 Browser ──► API Gateway HTTP API ──► Lambda ──────► DynamoDB
               │  JWT authorizer      ├ tutorials    single table
               │  (Auth0 JWKS)        ├ users        + GSI1 leaderboard
@@ -157,17 +157,23 @@ Point the leaderboard table's `Email` column at `displayName`.
 
 3. **GitHub OIDC** — create two IAM roles trusting
    `token.actions.githubusercontent.com`: one read-only for plans, one with
-   deploy permissions. Then set on the repository:
+   deploy permissions. Then set on the repository, and on each GitHub
+   Environment (`dev`, `prod`) where the table says so:
 
-   | Kind | Name | Value |
-   | --- | --- | --- |
-   | Secret | `AWS_DEPLOY_ROLE_ARN` | deploy role ARN |
-   | Secret | `AWS_PLAN_ROLE_ARN` | read-only role ARN |
-   | Secret | `AUTH0_CLIENT_ID` | M2M client id |
-   | Secret | `AUTH0_CLIENT_SECRET` | M2M client secret |
-   | Secret | `CLOUDFLARE_API_TOKEN` | DNS token, see below |
-   | Variable | `TF_STATE_BUCKET` | state bucket name |
-   | Variable | `AWS_REGION` | e.g. `eu-west-2` |
+   | Kind | Where | Name | Value |
+   | --- | --- | --- | --- |
+   | Secret | repo | `AWS_DEPLOY_ROLE_ARN` | deploy role ARN |
+   | Secret | repo | `AWS_PLAN_ROLE_ARN` | read-only role ARN |
+   | Secret | env | `AUTH0_CLIENT_ID` | that environment's M2M client id |
+   | Secret | env | `AUTH0_CLIENT_SECRET` | that environment's M2M secret |
+   | Secret | repo | `CLOUDFLARE_API_TOKEN` | DNS token, see below |
+   | Secret or variable | repo | `TF_VAR_CLOUDFLARE_ACCOUNT_ID` | account id |
+   | Secret or variable | repo | `TF_VAR_CLOUDFLARE_ZONE_ID` | `peebles.lol` zone id |
+   | Variable | repo | `TF_STATE_BUCKET` | state bucket name |
+   | Variable | repo | `AWS_REGION` | e.g. `eu-west-2` |
+
+   An environment secret shadows a repository secret of the same name, so a
+   leftover repo-level `AUTH0_*` pair is ignored by every job here.
 
 4. **Cloudflare DNS token** — create an API token scoped to `Zone:DNS:Edit` on
    the `peebles.lol` zone and nothing else. Terraform uses it to publish the
@@ -242,6 +248,33 @@ The reasons the API is DNS-only are all API Gateway's - source IPs in access
 logs, per-IP throttling, Universal SSL depth at `api.` - and none of them apply
 to a static site that wants the CDN in front of it.
 
+#### Environments and branch previews
+
+Dev and prod are separate stacks in **one Auth0 tenant**
+(`a-peebles.uk.auth0.com`). Each has its own API (audience) and SPA client,
+named `relay-synth-<environment>`, and each GitHub Environment (`dev`, `prod`)
+holds its own Management API application's credentials as `AUTH0_CLIENT_ID`
+and `AUTH0_CLIENT_SECRET`. Deploys and PR plans both run in the environment
+they target, which is what selects the right pair.
+
+The tenant's post-login trigger binding is tenant-wide, so only prod manages
+it; dev sets `manage_auth0_login_flow = false`. Prod's Action runs for every
+login in the tenant, so dev's tokens carry the same claims. Deploy dev before
+prod whenever that setting changes: dev giving up the binding clears it, and
+prod then recreates it.
+
+The app's Pages workflow publishes every non-`master` branch as a preview at
+`<branch>.relay-synth.pages.dev`, and previews use **dev**. The app repo's
+`preview` GitHub Environment carries dev's values and its `prod` environment
+carries prod's; the Deploy run summary here lists both sets.
+
+`preview_pages_hostname` in `dev.tfvars` is what lets previews in. It adds
+`https://*.relay-synth.pages.dev` (and `/callback`) to dev's Auth0 SPA client,
+and adds `https://*` to dev's CORS, because an HTTP API cannot match a
+subdomain wildcard. That is acceptable for dev since CORS is not what guards
+the data - every route but `GET /` needs a token for dev's audience, which
+Auth0 only issues to dev's allowed origins. Prod leaves it empty.
+
 ### Deploy
 
 CI/CD handles this on merge to `master`. To deploy by hand:
@@ -287,6 +320,7 @@ and deletion protection on in production.
 
 - **Tutorial content** — never needs restoring. Re-run `npm run seed`.
 - **Player progress** — restore via PITR:
+
   ```bash
   aws dynamodb restore-table-to-point-in-time \
     --source-table-name relay-synth-prod \
