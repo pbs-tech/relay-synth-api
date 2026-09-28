@@ -26,11 +26,11 @@
   "devDependencies": {
     "@hono/node-server": "^2.1.1",
     "@types/aws-lambda": "^8.10.146",
-    "@types/node": "^22.10.2",
+    "@types/node": "^22.20.4",
     "@vitest/coverage-v8": "^5.0.1",
     "aws-sdk-client-mock": "^4.1.0",
     "esbuild": "^0.28.2",
-    "tsx": "^4.19.2",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   }
