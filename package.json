@@ -19,8 +19,8 @@
     "dev": "tsx watch scripts/dev-server.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1152.0",
-    "@aws-sdk/lib-dynamodb": "^3.1152.0",
+    "@aws-sdk/client-dynamodb": "^3.1156.0",
+    "@aws-sdk/lib-dynamodb": "^3.1156.0",
     "hono": "^4.13.13"
   },
   "devDependencies": {
