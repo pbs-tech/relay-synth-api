@@ -21,7 +21,7 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1173.0",
     "@aws-sdk/lib-dynamodb": "^3.1173.0",
-    "hono": "^4.13.18"
+    "hono": "^4.13.19"
   },
   "devDependencies": {
     "@hono/node-server": "^2.1.8",
